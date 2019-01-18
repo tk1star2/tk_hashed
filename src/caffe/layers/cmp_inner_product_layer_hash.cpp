@@ -18,47 +18,35 @@ template <typename Dtype>
 void CmpInnerProductHashLayer<Dtype>::ComputeBlobMask()
 {
   printf("\n\n\nERROR!!!!!! this must not be called!!!!\n\n\n");
-  //  LOG(INFO) << "inner blobmask"<<endl;
   int count = this->blobs()[0]->count();
-  //this->masks_.resize(count);
-
-  //this->indices_.resize(count);
-  //this->centroids_.resize(this->class_num_);
 
   //calculate min max value of weight
   const Dtype* weight = this->blobs_[0]->cpu_data();
   int *mask_data = this->masks_.mutable_cpu_data();
-  //Dtype min_weight = weight[0], max_weight = weight[0];
   vector<Dtype> sort_weight(count);
-
   for (int i = 0; i < count; ++i)
   {
-   //this->masks_[i] = 1; //initialize
      sort_weight[i] = fabs(weight[i]);
   }
 
   sort(sort_weight.begin(), sort_weight.end());
   
-  //max_weight = sort_weight[count - 1];
   float ratio = this->sparse_ratio_;
-  //cout << sort_weight[0] << " " << sort_weight[count - 1] << endl;
   int index = int(count*ratio);
   Dtype thr ;
   Dtype* muweight = this->blobs_[0]->mutable_cpu_data();
   float rat = 0;
   if(index >0) {
-  thr = sort_weight[index - 1];
-  //thr = ratio;
-  LOG(INFO) << "THR: "<<thr<<endl ;
+    thr = sort_weight[index - 1];
+    LOG(INFO) << "THR: "<<thr<<endl ;
 
-  for (int i = 0; i < count; ++i)
-  {
-    mask_data[i] =  ((weight[i] > thr || weight[i] < -thr) ? 1 : 0) ;
-    muweight[i] *= mask_data[i];
-   rat += (1-mask_data[i]) ;
-  }
-  }
-  else {
+    for (int i = 0; i < count; ++i)
+    {
+      mask_data[i] =  ((weight[i] > thr || weight[i] < -thr) ? 1 : 0) ;
+      muweight[i] *= mask_data[i];
+      rat += (1-mask_data[i]) ;
+    }
+  } else {
       for (int i = 0; i < count; ++i)
       {    
          mask_data[i]  = (weight[i]== 0 ? 0 : 1);
@@ -66,20 +54,13 @@ void CmpInnerProductHashLayer<Dtype>::ComputeBlobMask()
       } 
   }
   LOG(INFO) << "sparsity: "<< rat/count <<endl;
-  //min_weight = sort_weight[index];
 
   if(this->quantize_term_)
   {
-    // TK: define centroid#
-    // it can be count/80
     int nCentroid = this->class_num_;
-
-    //printf("\n\n\n**********************here*********************** \n\n\n");
     kmeans_cluster(this->indices_.mutable_cpu_data(), this->centroids_.mutable_cpu_data(), muweight, count, mask_data/*this->masks_*/, /*max_weight, min_weight,*/ nCentroid, 1000);
-    //printf("\n\n\n**********************end*********************** \n\n\n");
   }
 }
-
 
 
 
@@ -127,12 +108,15 @@ void CmpInnerProductHashLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bot
     if (bias_term_) {
       vector<int> bias_shape(1, N_);
       this->blobs_[1].reset(new Blob<Dtype>(bias_shape));
+
       shared_ptr<Filler<Dtype> > bias_filler(GetFiller<Dtype>(
           this->layer_param_.inner_product_param().bias_filler()));
       bias_filler->Fill(this->blobs_[1].get());
     }
   }  // parameter initialization
   this->param_propagate_down_.resize(this->blobs_.size(), true);
+
+
 #if defined(my_caffe_DC) || defined(my_caffe_hash)
   // this is why we can call immediately
   this->sparse_ratio_ = this->layer_param_.inner_product_param().sparse_ratio();
@@ -146,7 +130,6 @@ void CmpInnerProductHashLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bot
   int *mask_data = this->masks_.mutable_cpu_data();
   caffe_set(count, 1, this->masks_.mutable_cpu_data());
 
-
   if(quantize_term_)
   {   
     this->indices_.Reshape(mask_shape);
@@ -154,6 +137,19 @@ void CmpInnerProductHashLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bot
     this->centroids_.Reshape(cen_shape);
     this->tmpDiff_.Reshape(cen_shape);
     this->freq_.Reshape(cen_shape);
+   
+  //TK
+  //std::cout << "weight filler  is "<< this->layer_param_.inner_product_param().weight_filler() << std::endl;
+  //printf("weight filler  is %s",this->layer_param_.inner_product_param().weight_filler());
+
+
+/*
+  int nCluster = this->class_num_;
+  Dtype *cCentro = this->centroids_.mutable_cpu_data();
+  for(int k = 0; k < nCluster; ++k) {
+  	cCentro[k] = k/nCluster;
+  }
+*/
   } 
 #endif
 }

@@ -14,19 +14,19 @@ using namespace std;
 template<typename Dtype>
 void kmeans_cluster(/*vector<int> &*/int *cLabel, /*vector<Dtype> &*/Dtype *cCentro, Dtype *cWeights, int nWeights, int *mask/*vector<int> &mask*/, /*Dtype maxWeight, Dtype minWeight,*/  int nCluster,  int max_iter /* = 1000 */)
 {
-    printf("\n\nTK kmeans call!\n\n");
-    //find min max
-    Dtype maxWeight=numeric_limits<Dtype>::min(), minWeight=numeric_limits<Dtype>::max();
-    for(int k = 0; k < nWeights; ++k)
-    {
-        if(mask[k])
-        {
-            if(cWeights[k] > maxWeight)
-                maxWeight = cWeights[k];
-            if(cWeights[k] < minWeight)
-                minWeight = cWeights[k];
-        }
-    }
+    	printf("\n\nTK kmeans call!\n\n");
+    	//find min max
+    	Dtype maxWeight=numeric_limits<Dtype>::min(), minWeight=numeric_limits<Dtype>::max();
+    	for(int k = 0; k < nWeights; ++k)
+    	{
+        	if(mask[k])
+        	{
+            	if(cWeights[k] > maxWeight)
+                	maxWeight = cWeights[k];
+            	if(cWeights[k] < minWeight)
+                	minWeight = cWeights[k];
+        	}
+    	}
 	// generate initial centroids linearly
 	for (int k = 0; k < nCluster; k++)
 		cCentro[k] = minWeight + (maxWeight - minWeight)*k / (nCluster - 1);
