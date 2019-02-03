@@ -9,8 +9,8 @@ using namespace std ;
 #include "caffe/kmeans.hpp"
 #include "caffe/xxhash.hpp"
 
-#define my_caffe_hash
-//#define my_caffe_DC
+//#define my_caffe_hash
+#define my_caffe_DC
 //#define my_caffe_inner
 namespace caffe {
 

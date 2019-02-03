@@ -770,7 +770,7 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
 
     //TK
     //printf("TK output really? here1");
-    //layers_[target_layer_id]->ComputeBlobMask();
+    layers_[target_layer_id]->ComputeBlobMask();
 
 
   }

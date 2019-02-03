@@ -270,7 +270,7 @@ class Layer {
   }
 
   //TK
-  //virtual void ComputeBlobMask() {}
+  virtual void ComputeBlobMask() {}
 
   /**
    * @brief Specifies whether the layer should compute gradients w.r.t. a

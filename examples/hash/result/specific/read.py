@@ -11,18 +11,29 @@ for filename in glob.glob("*.npy"):
     #print(arr)
     #arr0 = arr[arr>0]
     if(np.ndim(arr)==1):
-	"""
+	
     	print(arr)
     	plt.plot(arr)
     	plt.show()
-	"""
+	
 	continue
     elif(np.ndim(arr)==2):
-	"""
+	
     	print(arr)
     	plt.plot(arr)
     	plt.show()
-	"""
+
+	max_data = np.amax(arr)
+	min_data = np.amin(arr)
+
+	if(max_data - min_data!=0):
+		temp_arr =((arr - min_data)/(max_data - min_data))*256
+		temp_arr = temp_arr.astype(np.uint8)
+	
+		data = Image.fromarray(temp_arr,'L')
+		data.show()
+	else :
+		print("ERROR!! max-min is 0")
 	continue
     else:
 	for each_in in range(arr.shape[0]):

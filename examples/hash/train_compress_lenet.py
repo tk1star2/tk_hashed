@@ -276,6 +276,7 @@ if __name__ == '__main__':
     #(6~10)    
     max_stage = 5 
     #max_stage = 10
+    #1~5:0, 5:4
     for s in range(4,max_stage):
       generate_lenet(s+1)
       generate_solver(s+1,iters[s])

@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
+#0   0   0   : black
+#255 255 255 : white
 for filename in glob.glob("*.npy"):
     print(filename)
     arr = np.load(filename)
