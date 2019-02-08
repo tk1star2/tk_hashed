@@ -26,6 +26,43 @@ class Filler {
 };  // class Filler
 
 
+
+//TK
+template <typename Dtype>
+class TkFiller : public Filler<Dtype> {
+ public:
+  explicit TkFiller(const FillerParameter& param)
+      : Filler<Dtype>(param) {}
+
+  virtual void Fill(Blob<Dtype>* blob) {
+    Dtype* data = blob->mutable_cpu_data();
+    const int count = blob->count();
+    const Dtype value = this->filler_param_.value();
+    CHECK(count);
+    printf("\n\n\n**********************here*********************** \n\n\n");
+    printf("TK: TK filler OK\n");
+
+    printf("\n\n\n**********************here*********************** \n\n\n");
+    //TK
+    //int nCluster = this->class_num_;
+    //Dtype *cCentro = this->centroids_.mutable_cpu_data();
+    //printf("\n\n\n2************************nCluster is this %d\n\n\n\n", nCluster);
+    //for(int k = 0; k < nCluster; ++k) {
+    //    cCentro[k] = 3;
+    //    printf("cCentro is %d\n", cCentro[k]);
+    //}
+    // end
+
+    //default : 0
+    for (int i = 0; i < count; ++i) {
+      data[i] = value;
+    }
+    CHECK_EQ(this->filler_param_.sparse(), -1)
+         << "Sparsity not supported by this Filler.";
+  }
+};
+
+
 /// @brief Fills a Blob with constant values @f$ x = 0 @f$.
 template <typename Dtype>
 class ConstantFiller : public Filler<Dtype> {
@@ -155,11 +192,9 @@ class XavierFiller : public Filler<Dtype> {
     Dtype n = fan_in;  // default to fan_in
 
     printf("\n\n\n**********************here*********************** \n\n\n");
-    printf("XAvier OK\n");
+    printf("TK: XAvier OK\n");
 
     printf("\n\n\n**********************here*********************** \n\n\n");
-
-
 
     if (this->filler_param_.variance_norm() ==
         FillerParameter_VarianceNorm_AVERAGE) {
@@ -275,6 +310,8 @@ class BilinearFiller : public Filler<Dtype> {
   }
 };
 
+
+
 /**
  * @brief Get a specific filler from the specification given in FillerParameter.
  *
@@ -298,6 +335,8 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new MSRAFiller<Dtype>(param);
   } else if (type == "bilinear") {
     return new BilinearFiller<Dtype>(param);
+  } else if (type == "tk") {
+    return new TkFiller<Dtype>(param);
   } else {
     CHECK(false) << "Unknown filler name: " << param.type();
   }

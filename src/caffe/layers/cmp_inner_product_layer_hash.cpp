@@ -10,8 +10,8 @@ using namespace std ;
 #include "caffe/xxhash.hpp"
 
 // isthis changed?
-//#define my_caffe_hash
-#define my_caffe_DC
+#define my_caffe_hash
+//#define my_caffe_DC
 //#define my_caffe_inner
 namespace caffe {
 
@@ -96,13 +96,33 @@ void CmpInnerProductHashLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bot
       weight_shape[0] = N_;
       weight_shape[1] = K_;
     }
-    this->blobs_[0].reset(new Blob<Dtype>(weight_shape));
-    // fill the weights with given filler
+
+
+
+#if defined(my_caffe_DC) || defined(my_caffe_hash)
+  // this is why we can call immediately
+  this->class_num_ = this->layer_param_.inner_product_param().class_num();
+  this->quantize_term_ = this->layer_param_.inner_product_param().quantize_term();
+
+  if(quantize_term_)
+  {   
+    vector<int> cen_shape(1,class_num_);
+    this->centroids_.Reshape(cen_shape);
+    this->tmpDiff_.Reshape(cen_shape);
+    this->freq_.Reshape(cen_shape);
+   
+  } 
+#endif
+
+
     printf("\n\n\n**********************here*********************** \n\n\n");
     printf("filler OK\n");
     printf("\n\n\n**********************here*********************** \n\n\n");
+    this->blobs_[0].reset(new Blob<Dtype>(weight_shape));
+    // fill the weights with given filler
     shared_ptr<Filler<Dtype> > weight_filler(GetFiller<Dtype>(
         this->layer_param_.inner_product_param().weight_filler()));
+    // TK: What is blobs_[0]
     weight_filler->Fill(this->blobs_[0].get());
 
     // If necessary, intiialize and fill the bias term
@@ -121,8 +141,8 @@ void CmpInnerProductHashLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bot
 #if defined(my_caffe_DC) || defined(my_caffe_hash)
   // this is why we can call immediately
   this->sparse_ratio_ = this->layer_param_.inner_product_param().sparse_ratio();
-  this->class_num_ = this->layer_param_.inner_product_param().class_num();
-  this->quantize_term_ = this->layer_param_.inner_product_param().quantize_term();
+  //this->class_num_ = this->layer_param_.inner_product_param().class_num();
+  //this->quantize_term_ = this->layer_param_.inner_product_param().quantize_term();
   int count = this->blobs_[0]->count() ; 
 
   // initialize mask matrix to 1
@@ -134,23 +154,33 @@ void CmpInnerProductHashLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bot
   if(quantize_term_)
   {   
     this->indices_.Reshape(mask_shape);
-    vector<int> cen_shape(1,class_num_);
-    this->centroids_.Reshape(cen_shape);
-    this->tmpDiff_.Reshape(cen_shape);
-    this->freq_.Reshape(cen_shape);
+    //vector<int> cen_shape(1,class_num_);
+    //this->centroids_.Reshape(cen_shape);
+    //this->tmpDiff_.Reshape(cen_shape);
+    //this->freq_.Reshape(cen_shape);
    
   //TK
   //std::cout << "weight filler  is "<< this->layer_param_.inner_product_param().weight_filler() << std::endl;
   //printf("weight filler  is %s",this->layer_param_.inner_product_param().weight_filler());
+  
+    // fill the weights with given filler
+    //shared_ptr<Filler<Dtype> > centroid_filler(GetFiller<Dtype>(
+    //    this->layer_param_.inner_product_param().centroid_filler()));
+    // TK: What is blobs_[0]
+    //centroid_filler->Fill(this->centroids_.mutable_cpu_data());
+
+    int nCluster = this->class_num_;
+    Dtype *cCentro = this->centroids_.mutable_cpu_data();
+    printf("\n\n\n1************************nCluster is this %d\n\n\n", nCluster);
+  
+    for(int k = 0; k < nCluster; k++) {
+	int value=0;
+	//printf("value is %d\n", value);
+	cCentro[k] = value;
+	//printf("cCentro is %f\n", cCentro[k]);
+    }
 
 
-/*
-  int nCluster = this->class_num_;
-  Dtype *cCentro = this->centroids_.mutable_cpu_data();
-  for(int k = 0; k < nCluster; ++k) {
-  	cCentro[k] = k/nCluster;
-  }
-*/
   } 
 #endif
 }
@@ -305,11 +335,15 @@ void CmpInnerProductHashLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
           int index1 = j%index_a;
           int index2 = (int)(j/index_a);
     	  std::array<int, 6> input {index1, index1+1, index1+2, index2, index2+1, index2+2};
+          //printf("(%d, %d) is index1,index2\n", index1, index2);
     	  xxh::hash_t<32> hash = xxh::xxhash<32>(input);
 	  tmpDiff[hash%(count/80)] += weight_diff[j];
+          printf("weight_diff[%d] is %f\n", j, weight_diff[j]);
           freq[hash%(count/80)]++;
 #else
           tmpDiff[indice_data[j]] += weight_diff[j];
+          //printf("weight_diff[%d] is %f\n", j, weight_diff[j]);
+          //printf("indice_data[%d] is %d\n", j, indice_data[j]);
           freq[indice_data[j]]++;
 #endif
        }
@@ -325,11 +359,111 @@ void CmpInnerProductHashLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
     	  std::array<int, 6> input {index1, index1+1, index1+2, index2, index2+1, index2+2};
     	  xxh::hash_t<32> hash = xxh::xxhash<32>(input);
           weight_diff[j] = tmpDiff[hash%(count/80)] / freq[hash%(count/80)];
+          if(j==0){
+          printf("hash is %d\n", hash);
+	  printf("count/90 is %d\n", count/80);
+	  printf("hash/(count/80) is %d\n", hash%(count/80));
+	  printf("tmpDiff is %f\n", tmpDiff[hash%(count/80)]);
+	  }
 #else
           weight_diff[j] = tmpDiff[indice_data[j]] / freq[indice_data[j]];
 #endif
        }
     }
+
+#ifdef my_caffe_hash
+    int nCluster = this->class_num_;
+    Dtype *cCentro = this->centroids_.mutable_cpu_data();
+
+    if(nCluster == 125) {
+    printf("tempDiff[120] is %f\n", tmpDiff[120]);
+    printf("freq[120] is %d\n", freq[120]);
+    printf("cCentro[120] is %f\n", cCentro[120]);
+    printf("=====\n");
+    } else if(nCluster ==9800){
+    printf("tempDiff[1645] is %f\n", tmpDiff[1645]);
+    printf("freq[1645] is %d\n", freq[1645]);
+    printf("cCentro[1645] is %f\n", cCentro[1645]);
+    printf("=====\n");
+    } else {
+    printf("tempDiff[0] is %f\n", tmpDiff[0]);
+    printf("freq[0] is %d\n", freq[0]);
+    printf("cCentro[0] is %f\n", cCentro[0]);
+    printf("=====\n");
+    }
+
+    //printf("\n\n\n2************************nCluster is this %d\n\n\n", nCluster);
+  
+    for(int k = 0; k < nCluster; k++) {
+	//printf("value is %d\n", value);
+	//point! - or +
+	cCentro[k] -= tmpDiff[k] / freq[k];
+	//printf("cCentro is %f\n", cCentro[k]);
+    }
+
+    if(nCluster == 125) {
+    printf("tempDiff[120] is %f\n", tmpDiff[120]);
+    printf("freq[120] is %d\n", freq[120]);
+    printf("cCentro[120] is %f\n", cCentro[120]);
+    printf("---------------------\n");
+    } else if(nCluster ==9800){
+    printf("tempDiff[1645] is %f\n", tmpDiff[1645]);
+    printf("freq[1645] is %d\n", freq[1645]);
+    printf("cCentro[1645] is %f\n", cCentro[1645]);
+    printf("---------------------\n");
+    } else {
+    printf("tempDiff[0] is %f\n", tmpDiff[0]);
+    printf("freq[0] is %d\n", freq[0]);
+    printf("cCentro[0] is %f\n", cCentro[0]);
+    printf("---------------------\n");
+    }
+
+#else
+    int nCluster = this->class_num_;
+    Dtype *cCentro = this->centroids_.mutable_cpu_data();
+/*
+    if(nCluster == 125) {
+    printf("tempDiff[41] is %f\n", tmpDiff[41]);
+    printf("freq[41] is %d\n", freq[41]);
+    printf("cCentro[41] is %f\n", cCentro[41]);
+    printf("=====\n");
+    } else if(nCluster ==9800){
+    printf("tempDiff[4053] is %f\n", tmpDiff[4053]);
+    printf("freq[4053] is %d\n", freq[4053]);
+    printf("cCentro[4053] is %f\n", cCentro[4053]);
+    printf("=====\n");
+    } else {
+    printf("tempDiff[0] is %f\n", tmpDiff[0]);
+    printf("freq[0] is %d\n", freq[0]);
+    printf("cCentro[0] is %f\n", cCentro[0]);
+    printf("=====\n");
+    }
+*/
+    for(int k = 0; k < nCluster; k++) {
+	//printf("value is %d\n", value);
+	//point! - or +
+	cCentro[k] -= tmpDiff[k] / freq[k];
+	//printf("cCentro is %f\n", cCentro[k]);
+    }
+/*
+    if(nCluster == 125) {
+    printf("tempDiff[41] is %f\n", tmpDiff[41]);
+    printf("freq[41] is %d\n", freq[41]);
+    printf("cCentro[41] is %f\n", cCentro[41]);
+    printf("---------------------\n");
+    } else if(nCluster ==9800){
+    printf("tempDiff[4053] is %f\n", tmpDiff[4053]);
+    printf("freq[4053] is %d\n", freq[4053]);
+    printf("cCentro[4053] is %f\n", cCentro[4053]);
+    printf("---------------------\n");
+    } else {
+    printf("tempDiff[0] is %f\n", tmpDiff[0]);
+    printf("freq[0] is %d\n", freq[0]);
+    printf("cCentro[0] is %f\n", cCentro[0]);
+    printf("---------------------\n");
+    }
+*/
+#endif
   }
   // END***********************************************
 #endif
@@ -337,6 +471,7 @@ void CmpInnerProductHashLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
 
 
   // weight_diff[] will be applied to weight!!!!!!!!!!!!1
+  // this->blobs_[0]->mutable_cpu_diff() is weight_diff[]
   if (bias_term_ && this->param_propagate_down_[1]) {
     const Dtype* top_diff = top[0]->cpu_diff();
     // Gradient with respect to bias
@@ -344,6 +479,7 @@ void CmpInnerProductHashLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
         bias_multiplier_.cpu_data(), (Dtype)1.,
         this->blobs_[1]->mutable_cpu_diff());
   }
+
   if (propagate_down[0]) {
     const Dtype* top_diff = top[0]->cpu_diff();
     // Gradient with respect to bottom data
